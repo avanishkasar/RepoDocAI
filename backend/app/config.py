@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str = "aseio8886/aseio-deepseek-coder6.7b"
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4"
-    GEMINI_API_KEY: str = "REDACTED_GEMINI_KEY"
+    GEMINI_API_KEY: str = ""  # Set via env var or .env file
     GEMINI_MODEL: str = "gemini-2.0-flash"
 
     # GitHub
@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     CLONE_DIR: str = os.path.join(os.environ.get("TEMP", os.path.join(os.path.dirname(__file__), "..", "..")), "repodocai_repos")
 
     # Napkin AI (visual generation)
-    NAPKIN_API_KEY: str = "REDACTED_NAPKIN_KEY"
+    NAPKIN_API_KEY: str = ""  # Set via env var or .env file
 
     # AMD GPU
     AMD_GPU_ENABLED: bool = True
