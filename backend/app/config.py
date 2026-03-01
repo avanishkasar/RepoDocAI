@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     GITHUB_TOKEN: str = ""  # Optional — for private repos
     CLONE_DIR: str = os.path.join(os.environ.get("TEMP", os.path.join(os.path.dirname(__file__), "..", "..")), "repodocai_repos")
 
+    # Napkin AI (visual generation)
+    NAPKIN_API_KEY: str = "REDACTED_NAPKIN_KEY"
+
     # AMD GPU
     AMD_GPU_ENABLED: bool = True
     ROCM_PATH: str = "/opt/rocm"

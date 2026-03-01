@@ -10,6 +10,7 @@ import VulnerabilityPanel from "@/components/VulnerabilityPanel";
 import BadgeWall from "@/components/BadgeWall";
 import ComplexityDashboard from "@/components/ComplexityDashboard";
 import AICodeReview from "@/components/AICodeReview";
+import NapkinGallery from "@/components/NapkinGallery";
 import { getApiBase } from "@/lib/api";
 
 interface DiagramData {
@@ -40,6 +41,7 @@ interface GeneratedDocs {
   complexity_metrics?: any;
   contributing_md?: string;
   ai_code_review?: string;
+  napkin_visuals?: any[];
 }
 
 type Status =
@@ -256,6 +258,7 @@ function GenerateContent() {
     { id: "contributing", label: "🤝 Contributing" },
     { id: "api", label: "📡 API Docs" },
     { id: "sections", label: "📄 All Sections" },
+    { id: "napkin", label: "🎨 Napkin Visuals" },
     { id: "markdown", label: "📝 Raw Markdown" },
   ];
 
@@ -507,6 +510,12 @@ function GenerateContent() {
             <pre className="p-6 rounded-2xl bg-black/30 border border-white/5 text-gray-300 text-sm overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-[80vh] overflow-y-auto">
               {docs.full_markdown || "Markdown not available."}
             </pre>
+          </div>
+        )}
+
+        {activeTab === "napkin" && (
+          <div className="p-8 rounded-2xl bg-white/[0.03] border border-white/5">
+            <NapkinGallery visuals={docs.napkin_visuals || []} />
           </div>
         )}
       </div>

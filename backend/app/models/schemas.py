@@ -108,6 +108,16 @@ class ComplexityMetrics(BaseModel):
     codebase_size: str
 
 
+class NapkinVisual(BaseModel):
+    title: str
+    description: str
+    category: str           # architecture, flow, tech_stack, security, etc.
+    format: str = "svg"     # svg or png
+    content_data: str       # raw SVG string or base64-encoded PNG
+    visual_id: Optional[str] = None
+    style: Optional[str] = None
+
+
 class GeneratedDocs(BaseModel):
     repo_name: str
     overview: str
@@ -123,6 +133,8 @@ class GeneratedDocs(BaseModel):
     complexity_metrics: Optional[ComplexityMetrics] = None
     contributing_md: Optional[str] = None
     ai_code_review: Optional[str] = None
+    # ── Napkin AI visuals ──
+    napkin_visuals: Optional[List[NapkinVisual]] = None
 
 
 class GenerationStatus(str, Enum):

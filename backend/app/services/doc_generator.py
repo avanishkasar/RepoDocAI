@@ -1,7 +1,9 @@
-from typing import List
-from ..models.schemas import RepoAnalysis, GeneratedDocs, DocSection, DiagramData
+import logging
+from typing import List, Optional
+from ..models.schemas import RepoAnalysis, GeneratedDocs, DocSection, DiagramData, NapkinVisual
 from .llm_service import LLMService
 from .diagram_generator import DiagramGenerator
+from .napkin_service import NapkinService
 from .advanced_features import (
     CodeHealthScorer,
     VulnerabilityScanner,
@@ -10,6 +12,8 @@ from .advanced_features import (
     ContributingGenerator,
     CodeReviewPromptBuilder,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class DocGenerator:
@@ -25,6 +29,7 @@ class DocGenerator:
         self.complexity_analyzer = ComplexityAnalyzer()
         self.contributing_gen = ContributingGenerator()
         self.review_builder = CodeReviewPromptBuilder()
+        self.napkin = NapkinService()
 
     async def generate(self, analysis: RepoAnalysis) -> GeneratedDocs:
         # 1. Generate diagrams (no LLM needed)
@@ -79,6 +84,9 @@ class DocGenerator:
         except Exception:
             ai_review = "Code review generation failed — LLM may be unavailable."
 
+        # 8. Napkin AI Visuals
+        napkin_visuals = await self._generate_napkin_visuals(analysis)
+
         return GeneratedDocs(
             repo_name=analysis.repo_name,
             overview=overview,
@@ -93,9 +101,45 @@ class DocGenerator:
             complexity_metrics=complexity_data,
             contributing_md=contributing,
             ai_code_review=ai_review,
+            napkin_visuals=napkin_visuals,
         )
 
     # ── Parsing ──────────────────────────────────
+
+    async def _generate_napkin_visuals(self, analysis: RepoAnalysis) -> Optional[list]:
+        """Generate Napkin AI visuals from analysis data."""
+        if not self.napkin.available:
+            logger.info("Napkin AI not configured — skipping visual generation")
+            return None
+
+        try:
+            summary = {
+                "repo_name": analysis.repo_name,
+                "languages": analysis.languages,
+                "frameworks": [f.name for f in analysis.frameworks],
+                "file_count": analysis.file_count,
+                "total_lines": analysis.total_lines,
+                "has_tests": analysis.has_tests,
+                "has_docker": analysis.has_docker,
+                "has_ci": analysis.has_ci,
+                "dependencies_count": len(analysis.dependencies),
+            }
+            raw_visuals = await self.napkin.generate_doc_visuals(summary)
+            return [
+                NapkinVisual(
+                    title=v["title"],
+                    description=v["description"],
+                    category=v["category"],
+                    format=v.get("format", "svg"),
+                    content_data=v["content_data"],
+                    visual_id=v.get("visual_id"),
+                    style=v.get("style"),
+                )
+                for v in raw_visuals
+            ] or None
+        except Exception as e:
+            logger.error(f"Napkin visual generation failed: {e}")
+            return None
 
     @staticmethod
     def _parse_sections(raw: str) -> List[DocSection]:

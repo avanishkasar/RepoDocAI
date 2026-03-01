@@ -100,8 +100,8 @@ async def _generate(task_id: str, req: RepoRequest):
         docs = await doc_generator.generate(analysis)
 
         _tasks[task_id] = GenerationProgress(
-            status=GenerationStatus.GENERATING, progress=80,
-            message="Running code health scan & vulnerability analysis…"
+            status=GenerationStatus.GENERATING, progress=85,
+            message="Generating Napkin AI visuals & running security scan…"
         )
 
         markdown = doc_generator.generate_markdown(docs)

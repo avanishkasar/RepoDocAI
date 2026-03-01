@@ -42,6 +42,12 @@ const FEATURES = [
     tag: "NEW",
   },
   {
+    icon: "🎨",
+    title: "Napkin AI Visuals",
+    desc: "Auto-generate professional diagrams & infographics from your docs.",
+    tag: "NEW",
+  },
+  {
     icon: "📄",
     title: "README & Overview",
     desc: "Auto-generate project description, purpose, and key features.",
