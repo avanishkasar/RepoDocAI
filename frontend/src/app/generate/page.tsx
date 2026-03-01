@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import MermaidDiagram from "@/components/MermaidDiagram";
 import DocViewer from "@/components/DocViewer";
 import ProgressBar from "@/components/ProgressBar";
@@ -10,6 +10,7 @@ import VulnerabilityPanel from "@/components/VulnerabilityPanel";
 import BadgeWall from "@/components/BadgeWall";
 import ComplexityDashboard from "@/components/ComplexityDashboard";
 import AICodeReview from "@/components/AICodeReview";
+import { getApiBase } from "@/lib/api";
 
 interface DiagramData {
   title: string;
@@ -33,7 +34,6 @@ interface GeneratedDocs {
   api_docs: string | null;
   full_markdown?: string;
   performance_metrics?: Record<string, any>;
-  // ── Crazy features ──
   health_score?: any;
   vulnerability_scan?: any;
   badges?: any[];
@@ -42,7 +42,13 @@ interface GeneratedDocs {
   ai_code_review?: string;
 }
 
-type Status = "pending" | "cloning" | "analyzing" | "generating" | "complete" | "error";
+type Status =
+  | "pending"
+  | "cloning"
+  | "analyzing"
+  | "generating"
+  | "complete"
+  | "error";
 
 interface TaskStatus {
   status: Status;
@@ -59,9 +65,9 @@ const STATUS_LABELS: Record<Status, string> = {
   error: "Error",
 };
 
-export default function GeneratePage() {
-  const params = useParams();
-  const taskId = params.taskId as string;
+function GenerateContent() {
+  const searchParams = useSearchParams();
+  const taskId = searchParams.get("taskId") || "";
 
   const [status, setStatus] = useState<TaskStatus>({
     status: "pending",
@@ -79,15 +85,15 @@ export default function GeneratePage() {
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/status/${taskId}`);
+        const base = getApiBase();
+        const res = await fetch(`${base}/api/status/${taskId}`);
         if (!res.ok) return;
         const data: TaskStatus = await res.json();
         setStatus(data);
 
         if (data.status === "complete") {
           clearInterval(interval);
-          // Fetch full result
-          const resultRes = await fetch(`/api/result/${taskId}`);
+          const resultRes = await fetch(`${base}/api/result/${taskId}`);
           if (resultRes.ok) {
             const resultData = await resultRes.json();
             setDocs(resultData.result);
@@ -108,6 +114,18 @@ export default function GeneratePage() {
       setTimeout(() => setCopied(false), 2000);
     }
   }, [docs]);
+
+  // ── No task ID ───────────────────────────────
+  if (!taskId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-gray-400">
+        No task ID provided.{" "}
+        <a href="/" className="text-amd-red underline ml-2">
+          Go back
+        </a>
+      </div>
+    );
+  }
 
   // ── Loading / Progress state ─────────────────
   if (status.status !== "complete" && status.status !== "error") {
@@ -145,41 +163,46 @@ export default function GeneratePage() {
           <ProgressBar progress={status.progress} />
 
           <div className="mt-6 space-y-3">
-            {(["cloning", "analyzing", "generating", "complete"] as Status[]).map(
-              (step) => {
-                const order = ["cloning", "analyzing", "generating", "complete"];
-                const currentIdx = order.indexOf(status.status);
-                const stepIdx = order.indexOf(step);
-                const isDone = stepIdx < currentIdx;
-                const isCurrent = stepIdx === currentIdx;
+            {(
+              ["cloning", "analyzing", "generating", "complete"] as Status[]
+            ).map((step) => {
+              const order = [
+                "cloning",
+                "analyzing",
+                "generating",
+                "complete",
+              ];
+              const currentIdx = order.indexOf(status.status);
+              const stepIdx = order.indexOf(step);
+              const isDone = stepIdx < currentIdx;
+              const isCurrent = stepIdx === currentIdx;
 
-                return (
+              return (
+                <div
+                  key={step}
+                  className={`flex items-center gap-3 text-sm ${
+                    isDone
+                      ? "text-green-400"
+                      : isCurrent
+                      ? "text-amd-red"
+                      : "text-gray-600"
+                  }`}
+                >
                   <div
-                    key={step}
-                    className={`flex items-center gap-3 text-sm ${
+                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs border ${
                       isDone
-                        ? "text-green-400"
+                        ? "bg-green-500/20 border-green-500"
                         : isCurrent
-                        ? "text-amd-red"
-                        : "text-gray-600"
+                        ? "bg-amd-red/20 border-amd-red animate-pulse"
+                        : "border-gray-700"
                     }`}
                   >
-                    <div
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs border ${
-                        isDone
-                          ? "bg-green-500/20 border-green-500"
-                          : isCurrent
-                          ? "bg-amd-red/20 border-amd-red animate-pulse"
-                          : "border-gray-700"
-                      }`}
-                    >
-                      {isDone ? "✓" : isCurrent ? "►" : "○"}
-                    </div>
-                    {STATUS_LABELS[step]}
+                    {isDone ? "✓" : isCurrent ? "►" : "○"}
                   </div>
-                );
-              }
-            )}
+                  {STATUS_LABELS[step]}
+                </div>
+              );
+            })}
           </div>
 
           <p className="text-center text-gray-600 text-xs mt-6">
@@ -221,19 +244,19 @@ export default function GeneratePage() {
   }
 
   const TABS = [
-    { id: "overview", label: "📋 Overview", icon: "📋" },
-    { id: "health", label: "🏥 Health Score", icon: "🏥" },
-    { id: "diagrams", label: "📊 Diagrams", icon: "📊" },
-    { id: "complexity", label: "🔬 Complexity", icon: "🔬" },
-    { id: "vulns", label: "🛡️ Security", icon: "🛡️" },
-    { id: "review", label: "🤖 AI Review", icon: "🤖" },
-    { id: "techstack", label: "⚙️ Tech Stack", icon: "⚙️" },
-    { id: "setup", label: "🚀 Setup Guide", icon: "🚀" },
-    { id: "badges", label: "🏷️ Badges", icon: "🏷️" },
-    { id: "contributing", label: "🤝 Contributing", icon: "🤝" },
-    { id: "api", label: "📡 API Docs", icon: "📡" },
-    { id: "sections", label: "📄 All Sections", icon: "📄" },
-    { id: "markdown", label: "📝 Raw Markdown", icon: "📝" },
+    { id: "overview", label: "📋 Overview" },
+    { id: "health", label: "🏥 Health Score" },
+    { id: "diagrams", label: "📊 Diagrams" },
+    { id: "complexity", label: "🔬 Complexity" },
+    { id: "vulns", label: "🛡️ Security" },
+    { id: "review", label: "🤖 AI Review" },
+    { id: "techstack", label: "⚙️ Tech Stack" },
+    { id: "setup", label: "🚀 Setup Guide" },
+    { id: "badges", label: "🏷️ Badges" },
+    { id: "contributing", label: "🤝 Contributing" },
+    { id: "api", label: "📡 API Docs" },
+    { id: "sections", label: "📄 All Sections" },
+    { id: "markdown", label: "📝 Raw Markdown" },
   ];
 
   return (
@@ -314,8 +337,12 @@ export default function GeneratePage() {
         {activeTab === "health" && docs.health_score && (
           <div className="max-w-3xl mx-auto p-8 rounded-2xl bg-white/[0.03] border border-white/5">
             <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-white mb-1">Code Health Report</h2>
-              <p className="text-white/40 text-sm">Automated quality assessment of your repository</p>
+              <h2 className="text-2xl font-bold text-white mb-1">
+                Code Health Report
+              </h2>
+              <p className="text-white/40 text-sm">
+                Automated quality assessment of your repository
+              </p>
             </div>
             <HealthScoreGauge data={docs.health_score} />
           </div>
@@ -351,8 +378,12 @@ export default function GeneratePage() {
         {activeTab === "complexity" && docs.complexity_metrics && (
           <div className="p-8 rounded-2xl bg-white/[0.03] border border-white/5">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-white mb-1">Codebase Complexity</h2>
-              <p className="text-white/40 text-sm">Deep dive into code structure and metrics</p>
+              <h2 className="text-2xl font-bold text-white mb-1">
+                Codebase Complexity
+              </h2>
+              <p className="text-white/40 text-sm">
+                Deep dive into code structure and metrics
+              </p>
             </div>
             <ComplexityDashboard data={docs.complexity_metrics} />
           </div>
@@ -361,8 +392,12 @@ export default function GeneratePage() {
         {activeTab === "vulns" && docs.vulnerability_scan && (
           <div className="max-w-4xl mx-auto p-8 rounded-2xl bg-white/[0.03] border border-white/5">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-white mb-1">Security Scan</h2>
-              <p className="text-white/40 text-sm">Dependency vulnerability analysis</p>
+              <h2 className="text-2xl font-bold text-white mb-1">
+                Security Scan
+              </h2>
+              <p className="text-white/40 text-sm">
+                Dependency vulnerability analysis
+              </p>
             </div>
             <VulnerabilityPanel data={docs.vulnerability_scan} />
           </div>
@@ -376,7 +411,11 @@ export default function GeneratePage() {
 
         {activeTab === "techstack" && (
           <div className="doc-content">
-            <DocViewer content={docs.tech_stack || "No tech stack information generated."} />
+            <DocViewer
+              content={
+                docs.tech_stack || "No tech stack information generated."
+              }
+            />
           </div>
         )}
 
@@ -391,8 +430,12 @@ export default function GeneratePage() {
         {activeTab === "badges" && docs.badges && (
           <div className="max-w-3xl mx-auto p-8 rounded-2xl bg-white/[0.03] border border-white/5">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-white mb-1">Auto-Generated Badges</h2>
-              <p className="text-white/40 text-sm">Ready-to-use shields.io badges for your README</p>
+              <h2 className="text-2xl font-bold text-white mb-1">
+                Auto-Generated Badges
+              </h2>
+              <p className="text-white/40 text-sm">
+                Ready-to-use shields.io badges for your README
+              </p>
             </div>
             <BadgeWall badges={docs.badges} />
           </div>
@@ -402,8 +445,12 @@ export default function GeneratePage() {
           <div className="p-8 rounded-2xl bg-white/[0.03] border border-white/5">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-white mb-1">CONTRIBUTING.md</h2>
-                <p className="text-white/40 text-sm">Auto-generated contribution guidelines</p>
+                <h2 className="text-2xl font-bold text-white mb-1">
+                  CONTRIBUTING.md
+                </h2>
+                <p className="text-white/40 text-sm">
+                  Auto-generated contribution guidelines
+                </p>
               </div>
               <button
                 onClick={() => {
@@ -423,7 +470,10 @@ export default function GeneratePage() {
         {activeTab === "api" && (
           <div className="doc-content">
             <DocViewer
-              content={docs.api_docs || "No API documentation detected for this project."}
+              content={
+                docs.api_docs ||
+                "No API documentation detected for this project."
+              }
             />
           </div>
         )}
@@ -461,5 +511,19 @@ export default function GeneratePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function GeneratePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center text-gray-400">
+          Loading...
+        </div>
+      }
+    >
+      <GenerateContent />
+    </Suspense>
   );
 }

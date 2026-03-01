@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { getApiBase } from "@/lib/api";
 
 const FEATURES = [
   {
@@ -92,7 +93,7 @@ export default function Home() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/generate", {
+      const res = await fetch(`${getApiBase()}/api/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ repo_url: repoUrl.trim() }),
@@ -100,7 +101,7 @@ export default function Home() {
 
       if (!res.ok) throw new Error("Failed to start generation");
       const data = await res.json();
-      router.push(`/generate/${data.task_id}`);
+      router.push(`/generate?taskId=${data.task_id}`);
     } catch (err: any) {
       setError(err.message || "Something went wrong");
       setLoading(false);
